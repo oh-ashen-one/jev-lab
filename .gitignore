@@ -1,0 +1,14 @@
+# Nothing here is secret, but never commit a key file by accident.
+.env
+.env.*
+*.env
+!.env.example
+
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+node_modules/
+
+.DS_Store
+*.log
