@@ -1,7 +1,9 @@
-/* Pong — Jev steers the right paddle. The ball, walls and scoring are code.
+/* Pong — Jev steers BOTH paddles. The ball, walls and scoring are code.
  *
- * The point: difficulty is not a different model, it's a confidence threshold.
- * Below it Jev abstains and the paddle hesitates.
+ * Mirror match: one API call per tick carries the same typed question
+ * (up / hold / down) for each side, over a state describing that side's own
+ * view. Both paddles can abstain independently — and an abstention means the
+ * stale order keeps running, on both ends of the court.
  */
 import { askJev, renderAnswers, showError, onActivate, gated, setBusy } from './app.js';
 
@@ -9,6 +11,10 @@ const W = 880, H = 520;
 const PAD_W = 13, PAD_H = 92, PAD_SPEED = 430;
 const BALL_R = 9, BASE_SPEED = 300;
 const DECIDE_EVERY_MS = 240;
+
+const COL_L = '#8fa8ff';      // left Jev — violet
+const COL_R = '#2ee6a8';      // right Jev — teal
+const COL_ABSTAIN = '#ffb454';
 
 const cv = document.getElementById('pong-canvas');
 const ctx = cv.getContext('2d');
@@ -22,26 +28,23 @@ const SP_OUT = document.getElementById('pong-speed-out');
 const NZ = document.getElementById('pong-noise');
 const NZ_OUT = document.getElementById('pong-noise-out');
 
+const mkPaddle = () => ({ y: H / 2, dir: 0, decidedAt: 0, decision: null });
 const G = {
   ball: { x: W / 2, y: H / 2, vx: 0, vy: 0 },
-  left: { y: H / 2 }, right: { y: H / 2 },
-  rightDir: 0,            // -1 up, 0 hold, +1 down  (Jev's last command)
-  rightDecidedAt: 0,
-  agent: null,            // last full answer set, for the panel
-  score: { code: 0, jev: 0, abstain: 0 },
-  lastDecision: null,
-  confidence: null,
+  left: mkPaddle(), right: mkPaddle(),   // dir: -1 up, 0 hold, +1 down
+  agent: null,                          // last full answer set, for the panel
+  score: { left: 0, right: 0, abstainL: 0, abstainR: 0 },
   serving: 'left',
   running: true,
 };
 
 /* ── physics ─────────────────────────────────────────────────────────────── */
-function serve(towardJev) {
+function serve(towardRight) {
   G.serving = null;
   const speed = BASE_SPEED * parseFloat(SP.value);
   const ang = (Math.random() * 0.5 - 0.25) * Math.PI;   // mostly horizontal
-  const dir = towardJev ? 1 : -1;
-  G.ball.x = towardJev ? W * 0.32 : W * 0.68;
+  const dir = towardRight ? 1 : -1;
+  G.ball.x = towardRight ? W * 0.32 : W * 0.68;
   G.ball.y = H * (0.25 + Math.random() * 0.5);
   G.ball.vx = Math.cos(ang) * speed * dir;
   G.ball.vy = Math.sin(ang) * speed;
@@ -76,14 +79,12 @@ function step(dt) {
   if (b.y < BALL_R) { b.y = BALL_R; b.vy = Math.abs(b.vy); }
   if (b.y > H - BALL_R) { b.y = H - BALL_R; b.vy = -Math.abs(b.vy); }
 
-  // left paddle: perfect deterministic bot — the baseline Jev is judged against
-  const codeTarget = predictCrossY(60) - PAD_H / 2;
-  G.left.y += Math.max(-PAD_SPEED * dt, Math.min(PAD_SPEED * dt,
-    (codeTarget - G.left.y) * 8));
-
-  // right paddle: driven ONLY by Jev's decision, refreshed every decision
-  if (performance.now() - G.rightDecidedAt < DECIDE_EVERY_MS * 1.6) {
-    G.right.y = Math.max(0, Math.min(H - PAD_H, G.right.y + G.rightDir * PAD_SPEED * dt));
+  // both paddles are driven ONLY by Jev's last order for that side
+  for (const side of ['left', 'right']) {
+    const p = G[side];
+    if (performance.now() - p.decidedAt < DECIDE_EVERY_MS * 1.6) {
+      p.y = Math.max(0, Math.min(H - PAD_H, p.y + p.dir * PAD_SPEED * dt));
+    }
   }
 
   // paddle collisions
@@ -101,9 +102,9 @@ function step(dt) {
   }
 
   // scoring: the ball leaving an edge means THAT side failed to return it,
-  // so the point goes to the other paddle.
-  if (b.x < -30) { G.score.jev++; serve(true); }      // code bot missed
-  if (b.x > W + 30) { G.score.code++; serve(false); } // jev missed
+  // so the point goes to the other paddle. Serve goes to the scorer.
+  if (b.x < -30) { G.score.right++; serve(true); }
+  if (b.x > W + 30) { G.score.left++; serve(false); }
   paintScore();
 }
 
@@ -118,6 +119,14 @@ function bounce(dir, padCenter) {
 }
 
 /* ── rendering ───────────────────────────────────────────────────────────── */
+function drawPaddle(x, paddle, color, abstaining) {
+  ctx.shadowBlur = 22;
+  ctx.shadowColor = abstaining ? COL_ABSTAIN : color;
+  ctx.fillStyle = abstaining ? COL_ABSTAIN : color;
+  ctx.fillRect(x, paddle.y, PAD_W, PAD_H);
+  ctx.shadowBlur = 0;
+}
+
 function draw() {
   ctx.fillStyle = '#05070a';
   ctx.fillRect(0, 0, W, H);
@@ -127,18 +136,11 @@ function draw() {
   ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke();
   ctx.setLineDash([]);
 
-  const abstaining = G.lastDecision && G.lastDecision.abstained;
+  const abstL = !!(G.left.decision && G.left.decision.abstained);
+  const abstR = !!(G.right.decision && G.right.decision.abstained);
 
-  // left / code bot
-  ctx.fillStyle = '#465063';
-  ctx.fillRect(60, G.left.y, PAD_W, PAD_H);
-
-  // right / Jev
-  ctx.shadowBlur = 22;
-  ctx.shadowColor = abstaining ? '#ffb454' : '#2ee6a8';
-  ctx.fillStyle = abstaining ? '#ffb454' : '#2ee6a8';
-  ctx.fillRect(W - 60 - PAD_W, G.right.y, PAD_W, PAD_H);
-  ctx.shadowBlur = 0;
+  drawPaddle(60, G.left, COL_L, abstL);
+  drawPaddle(W - 60 - PAD_W, G.right, COL_R, abstR);
 
   // ball
   ctx.shadowBlur = 18; ctx.shadowColor = '#8fd6ff';
@@ -146,53 +148,56 @@ function draw() {
   ctx.beginPath(); ctx.arc(G.ball.x, G.ball.y, BALL_R, 0, Math.PI * 2); ctx.fill();
   ctx.shadowBlur = 0;
 
-  // Jev's predicted intercept — so you can see what it was told
-  if (G.lastDecision && G.lastDecision.intercept != null && G.ball.vx > 0) {
-    ctx.strokeStyle = 'rgba(46,230,168,.35)'; ctx.lineWidth = 2;
-    ctx.setLineDash([5, 6]);
-    ctx.beginPath();
-    ctx.moveTo(W - 60 - PAD_W, G.lastDecision.intercept);
-    ctx.lineTo(W, G.lastDecision.intercept);
-    ctx.stroke();
+  // each side's predicted intercept — so you can see what it was told
+  const hint = (x0, x1, y, color) => {
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.setLineDash([5, 6]);
+    ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
     ctx.setLineDash([]);
-  }
+  };
+  if (G.left.decision && G.left.decision.intercept != null && G.ball.vx < 0)
+    hint(0, 60 + PAD_W, G.left.decision.intercept, 'rgba(143,168,255,.35)');
+  if (G.right.decision && G.right.decision.intercept != null && G.ball.vx > 0)
+    hint(W - 60 - PAD_W, W, G.right.decision.intercept, 'rgba(46,230,168,.35)');
 
   ctx.font = '600 13px ui-monospace, monospace';
-  ctx.fillStyle = '#3d4756';
-  ctx.fillText('code bot', 24, 26);
+  ctx.fillStyle = abstL ? COL_ABSTAIN : COL_L;
+  ctx.fillText(abstL ? 'jev L · ABSTAIN' : 'jev L', 24, 26);
   ctx.textAlign = 'right';
-  ctx.fillStyle = abstaining ? '#ffb454' : '#2ee6a8';
-  ctx.fillText(abstaining ? 'jev · ABSTAIN' : 'jev', W - 24, 26);
+  ctx.fillStyle = abstR ? COL_ABSTAIN : COL_R;
+  ctx.fillText(abstR ? 'jev R · ABSTAIN' : 'jev R', W - 24, 26);
   ctx.textAlign = 'left';
 
-  if (abstaining) {
-    ctx.font = '700 15px ui-monospace, monospace';
-    ctx.fillStyle = 'rgba(255,180,84,.85)';
-    ctx.fillText('?', W - 44 - PAD_W, G.right.y + PAD_H / 2 + 5);
-  }
+  ctx.font = '700 15px ui-monospace, monospace';
+  ctx.fillStyle = 'rgba(255,180,84,.85)';
+  if (abstL) ctx.fillText('?', 60 + PAD_W + 14, G.left.y + PAD_H / 2 + 5);
+  if (abstR) ctx.fillText('?', W - 44 - PAD_W, G.right.y + PAD_H / 2 + 5);
 }
 
 function paintScore() {
-  document.getElementById('pong-you').textContent = G.score.code;
-  document.getElementById('pong-jev').textContent = G.score.jev;
-  document.getElementById('pong-abstain').textContent = G.score.abstain;
+  document.getElementById('pong-left').textContent = G.score.left;
+  document.getElementById('pong-right').textContent = G.score.right;
+  document.getElementById('pong-abstain-l').textContent = G.score.abstainL;
+  document.getElementById('pong-abstain-r').textContent = G.score.abstainR;
 }
 
 /* ── the decision loop ───────────────────────────────────────────────────── */
 const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
 
-function buildState() {
+/** One side's view of the world — the numbers Jev actually gets for it. */
+function sideView(side) {
   const b = G.ball;
   const noise = parseFloat(NZ.value);
-  const approaching = b.vx > 0;
-  const targetX = W - 60 - PAD_W;
+  const right = side === 'right';
+  const targetX = right ? W - 60 - PAD_W : 60 + PAD_W;
+  const approaching = right ? b.vx > 0 : b.vx < 0;
   const tts = approaching ? Math.max(0, (targetX - b.x) / b.vx) : null;
   const trueIntercept = predictCrossY(targetX);
   const sentIntercept = Math.max(0, Math.min(H, trueIntercept + gauss() * noise * H));
-  const padCenter = G.right.y + PAD_H / 2;
+  const padCenter = G[side].y + PAD_H / 2;
 
   return {
-    state: {
+    trueIntercept,
+    view: {
       ball_y: +(b.y / H + gauss() * noise * 0.5).toFixed(3),
       ball_x: +(b.x / W).toFixed(3),
       ball_moving_toward_you: approaching,
@@ -202,56 +207,63 @@ function buildState() {
       your_paddle_center_y: +(padCenter / H).toFixed(3),
       error: +((sentIntercept - padCenter) / H).toFixed(3),
       paddle_height: +(PAD_H / H).toFixed(3),
-      note: 'y grows downward. negative error means you must move up.',
     },
-    trueIntercept,
   };
 }
 
 async function decide() {
   setBusy(tickEl, true);
-  const { state, trueIntercept } = buildState();
+  const L = sideView('left'), R = sideView('right');
+  const moveQ = (sideName) => ({
+    type: 'choice',
+    instructions: `You control the ${sideName} paddle. It must intercept the ball. Which way should it move now?`,
+    criteria: {
+      up: 'Move the paddle upward, toward decreasing y.',
+      hold: 'Do not move; the paddle is already positioned well enough.',
+      down: 'Move the paddle downward, toward increasing y.',
+    },
+  });
   try {
-    const res = await askJev(state, {
-      move: {
-        type: 'choice',
-        instructions: 'Your paddle must intercept the ball. Which way should it move now?',
-        criteria: {
-          up: 'Move the paddle upward, toward decreasing y.',
-          hold: 'Do not move; the paddle is already positioned well enough.',
-          down: 'Move the paddle downward, toward increasing y.',
+    const res = await askJev(
+      {
+        note: 'y grows downward. negative error means that paddle must move up.',
+        left_paddle: L.view,
+        right_paddle: R.view,
+      },
+      {
+        left: moveQ('LEFT'),
+        right: moveQ('RIGHT'),
+        threat: {
+          type: 'score',
+          instructions: 'How likely is it that the next return is missed by either paddle?',
+          criteria: ['comfortably on target', 'tight, could go either way',
+            'very likely to miss'],
         },
-      },
-      threat: {
-        type: 'score',
-        instructions: 'How likely is it that the paddle fails to intercept?',
-        criteria: ['comfortably on target', 'tight, could go either way',
-          'very likely to miss'],
-      },
-    });
+      });
     G.agent = res.answers;
 
     const threshold = parseFloat(TH.value);
-    const mv = res.answers.move;
-    const chosen = gated(mv, threshold);
-    const abstained = chosen == null;
+    for (const side of ['left', 'right']) {
+      const mv = res.answers[side];
+      const chosen = gated(mv, threshold);
+      const p = G[side];
+      const abstained = chosen == null;
 
-    // Abstaining means NO NEW ORDER: the paddle keeps executing the previous
-    // one for another interval. That is what abstention actually costs inside a
-    // control loop — the correction you failed to issue is a stale input.
-    if (abstained) {
-      G.rightDecidedAt = performance.now();
-    } else {
-      G.rightDir = chosen === 'up' ? -1 : chosen === 'down' ? 1 : 0;
-      G.rightDecidedAt = performance.now();
+      // Abstaining means NO NEW ORDER: the paddle keeps executing the previous
+      // one for another interval. That is what abstention actually costs inside a
+      // control loop — the correction you failed to issue is a stale input.
+      if (!abstained) p.dir = chosen === 'up' ? -1 : chosen === 'down' ? 1 : 0;
+      p.decidedAt = performance.now();
+      p.decision = {
+        choice: chosen, abstained,
+        intercept: side === 'left' ? L.trueIntercept : R.trueIntercept,
+        confidence: mv && mv.confidence, latency: res.latency_ms,
+      };
+      if (abstained) side === 'left' ? G.score.abstainL++ : G.score.abstainR++;
     }
-    G.confidence = mv.confidence;
-    G.lastDecision = { choice: chosen, abstained, intercept: trueIntercept,
-      confidence: mv.confidence, latency: res.latency_ms };
-    if (abstained) G.score.abstain++;
 
     renderAnswers(answersEl, G.agent, {
-      order: { move: ['up', 'hold', 'down'] },
+      order: { left: ['up', 'hold', 'down'], right: ['up', 'hold', 'down'] },
       threshold,
     });
   } catch (e) {

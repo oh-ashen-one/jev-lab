@@ -28,14 +28,17 @@ numbers. The translator is not a detail. It is most of the result.
 
 ### Pong — difficulty is a confidence threshold, not a different model
 
-Jev steers the right paddle; a deterministic code bot steers the left. Jev only
-ever answers `up / hold / down`. The ball, walls and scoring are ordinary code.
+Jev steers **both** paddles — a mirror match. One call per tick carries the same
+typed question (`up / hold / down`) for each side, over a state describing that
+side's own view. The ball, walls and scoring are ordinary code, and both sides
+can abstain, so rallies run on whichever stale order happens to be right.
 
-The knob that matters is the confidence gate. Below it Jev **abstains**, and
+The knob that matters is the confidence gate. Below it a side **abstains**, and
 abstaining means *no new order* — the paddle keeps executing its last command, so
 the correction it failed to issue becomes a stale control input.
 
-Measured, on the same game:
+Measured when the left paddle was still a deterministic code bot (same game,
+same physics):
 
 | gate | code bot | Jev | abstentions |
 |---|---|---|---|
@@ -152,8 +155,8 @@ static/chessgame.js    legal-move generation, tactical screen, heatmap
 
 ## Caveats
 
-- These are demos. Pong's code bot is deliberately strong so Jev's losses mean
-  something; it is not a fair fight in the other direction.
+- These are demos. Pong is now Jev vs Jev, so the score line reflects perception
+  noise and abstention timing rather than a skill gap between opponents.
 - The chess move distribution spreads over ~14 candidates, so per-move
   confidence is legitimately low (0.2–0.4). That is honest, not a defect.
 - The RPS pose buttons inject *measured* feature vectors rather than deriving

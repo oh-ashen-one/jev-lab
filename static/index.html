@@ -34,22 +34,23 @@
     <div class="stage">
       <canvas id="pong-canvas" width="880" height="520"></canvas>
       <div class="stage-note">
-        Jev steers the <b>right</b> paddle. The ball and rules are ordinary code —
-        Jev only ever answers <code>up / hold / down</code>.
+        Jev steers <b>both</b> paddles — violet (left) vs teal (right). One call
+        per tick asks the same typed question for each side; Jev only ever answers
+        <code>up / hold / down</code>. The ball and rules are ordinary code.
       </div>
     </div>
     <aside class="brain">
-      <h2>Jev's decision <span class="tick" id="pong-tick"></span></h2>
+      <h2>Jev vs Jev <span class="tick" id="pong-tick"></span></h2>
 
       <label class="ctrl">
         <span class="ctrl-label">Difficulty <em>= confidence threshold</em></span>
         <input type="range" id="pong-threshold" min="0" max="0.95" step="0.01" value="0.50">
         <output id="pong-threshold-out">0.50</output>
       </label>
-      <p class="hint">Below the threshold Jev <b>abstains</b>. Abstaining means <b>no new
-        order</b> — the paddle keeps executing its last command, so the correction it
-        failed to issue becomes a stale input. Raise the gate and it only acts when
-        sure; the hesitation starts costing games.</p>
+      <p class="hint">Below the threshold a side <b>abstains</b> (amber). Abstaining means
+        <b>no new order</b> — that paddle keeps executing its last command, so the
+        correction it failed to issue becomes a stale input. Raise the gate and both
+        sides only act when sure; hesitation costs games on both ends.</p>
 
       <label class="ctrl">
         <span class="ctrl-label">Ball speed</span>
@@ -71,9 +72,10 @@
       <div class="qbox" id="pong-answers"></div>
 
       <div class="scoreline">
-        <div><span class="k">code bot</span><span class="v" id="pong-you">0</span></div>
-        <div><span class="k">jev</span><span class="v accent" id="pong-jev">0</span></div>
-        <div><span class="k">abstained</span><span class="v" id="pong-abstain">0</span></div>
+        <div><span class="k">jev L</span><span class="v" id="pong-left">0</span></div>
+        <div><span class="k">jev R</span><span class="v accent" id="pong-right">0</span></div>
+        <div><span class="k">abst L</span><span class="v" id="pong-abstain-l">0</span></div>
+        <div><span class="k">abst R</span><span class="v" id="pong-abstain-r">0</span></div>
       </div>
     </aside>
   </section>
