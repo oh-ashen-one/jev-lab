@@ -37,13 +37,16 @@ division of labour is explicit and visible in the UI:
   decision model is genuinely strong
 
 Its probability distribution is painted onto the board as a heatmap, so you can
-see the shape of its thinking before the move lands. The **intent** dropdown
-changes the same question on the same position: solid / aggressive / defensive /
-greedy / chaotic. Turn off the candidate screen and you can watch it play badly
-in a legible way.
+see the shape of its thinking before the move lands. Each side has its own
+**intent** selector — solid / aggressive / defensive / greedy / chaotic — so the
+same model can be given two different personalities and watched diverging.
 
-Because the button plays whoever is to move, you can also just watch Jev play
-itself.
+Press **▶ jev vs jev** and it plays itself end to end: each side's tag lights up
+while its call is in flight, and a narration strip reports every move in plain
+terms — the move number, the pick, how much of its probability mass it spent,
+its stated plan, and its king-worry score. Pause any time to play white
+yourself. Turn off the candidate screen and you can watch it play badly in a
+legible way.
 
 ## What the panel shows
 

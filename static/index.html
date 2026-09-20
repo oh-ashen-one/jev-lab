@@ -27,11 +27,14 @@
   <!-- ───────────────────────────── CHESS ───────────────────────────── -->
   <section class="panel is-active" id="panel-chess">
     <div class="stage">
+      <div class="sidetag" id="tag-b">jev · black</div>
       <div class="boardwrap">
         <div id="chess-board" class="board"></div>
       </div>
+      <div class="sidetag" id="tag-w">jev · white</div>
       <div class="rowbtns">
-        <button class="btn primary" id="chess-jev">Jev moves (white)</button>
+        <button class="btn primary" id="chess-auto">▶ jev vs jev</button>
+        <button class="btn" id="chess-jev">Jev moves once</button>
         <button class="btn" id="chess-undo">Undo</button>
         <button class="btn" id="chess-reset">Reset</button>
         <label class="ctrl row tight">
@@ -40,11 +43,13 @@
         </label>
         <span class="divider" id="chess-turn">white to move</span>
       </div>
+      <div class="narration" id="chess-narr">press ▶ — jev plays both sides, each with its own intent</div>
       <p class="hint" id="chess-note">
-        Move the white pieces yourself, or let Jev play either side — click the
-        button on white's turn and it plays Jev vs Jev. Code generates the legal
-        moves and (optionally) filters to the tactically safe ones, so Jev never
-        sees an illegal move and cannot hang a piece by arithmetic slip.
+        Press ▶ and Jev plays both sides — every move is a live API call, and the
+        heatmap shows its probability spread before the move lands. Code generates
+        the legal moves and (optionally) filters to the tactically safe ones, so
+        Jev never sees an illegal move and cannot hang a piece by arithmetic slip.
+        Pause any time to play white yourself.
       </p>
       <div class="movelist" id="chess-moves"></div>
     </div>
@@ -52,17 +57,27 @@
       <h2>Jev's decision <span class="tick" id="chess-tick"></span></h2>
 
       <label class="ctrl">
-        <span class="ctrl-label">Intent <em>— instruction following</em></span>
-        <select id="chess-intent">
+        <span class="ctrl-label">White Jev <em>— intent</em></span>
+        <select id="chess-intent-w">
           <option value="solid">solid and safe</option>
+          <option value="aggressive" selected>aggressive, attack the king</option>
+          <option value="defensive">defensive, protect the king</option>
+          <option value="greedy">greedy, grab material</option>
+          <option value="chaotic">chaotic, surprising moves</option>
+        </select>
+      </label>
+      <label class="ctrl">
+        <span class="ctrl-label">Black Jev <em>— intent</em></span>
+        <select id="chess-intent-b">
+          <option value="solid" selected>solid and safe</option>
           <option value="aggressive">aggressive, attack the king</option>
           <option value="defensive">defensive, protect the king</option>
           <option value="greedy">greedy, grab material</option>
           <option value="chaotic">chaotic, surprising moves</option>
         </select>
       </label>
-      <p class="hint">Same position, different instruction — watch the
-        distribution over moves change.</p>
+      <p class="hint">Same model, different instruction per side — watch the
+        distributions diverge.</p>
 
       <div class="qbox" id="chess-answers"></div>
 

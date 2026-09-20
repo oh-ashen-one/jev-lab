@@ -27,14 +27,25 @@ const answersEl = document.getElementById('chess-answers');
 const movesEl = document.getElementById('chess-moves');
 const payloadEl = document.getElementById('chess-payload');
 const candsEl = document.getElementById('chess-cands');
-const intentSel = document.getElementById('chess-intent');
+const intentW = document.getElementById('chess-intent-w');
+const intentB = document.getElementById('chess-intent-b');
 const screenChk = document.getElementById('chess-screen');
 const noteEl = document.getElementById('chess-note');
+const narrEl = document.getElementById('chess-narr');
+const tagW = document.getElementById('tag-w');
+const tagB = document.getElementById('tag-b');
+const autoBtn = document.getElementById('chess-auto');
 
 let game = new Chess();
 let selected = null;
 let heat = {};          // {square: probability}
 let busy = false;
+let auto = false;
+const NEXT_MOVE_MS = 900;   // beat between moves so each one reads to an audience
+
+const selFor = (side) => side === 'white' ? intentW : intentB;
+const tagFor = (side) => side === 'white' ? tagW : tagB;
+const intentName = (side) => selFor(side).options[selFor(side).selectedIndex].text;
 
 /* ── shallow tactical screen (this is the part that must NOT be Jev) ─────── */
 function screenScore(m) {
@@ -164,7 +175,7 @@ function renderMoves() {
 }
 
 function onSquare(name, sq) {
-  if (game.isGameOver() || busy) return;
+  if (game.isGameOver() || busy || auto) return;
   if (game.turn() !== 'w') return;
   if (sq && sq.color === 'w') { selected = name; heat = {}; render(); return; }
   if (selected) {
@@ -182,9 +193,15 @@ function onSquare(name, sq) {
 
 function checkOver() {
   if (!game.isGameOver()) return;
-  noteEl.textContent = game.isCheckmate()
-    ? `Checkmate — ${game.turn() === 'w' ? 'Jev' : 'you'} win.`
-    : 'Draw (' + (game.isDrawByFiftyMoves?.() ? 'fifty-move' : 'stalemate/insufficient material') + ').';
+  if (game.isCheckmate()) {
+    const winner = game.turn() === 'w' ? 'black' : 'white';
+    noteEl.textContent = `Checkmate — ${winner} wins.`;
+    narrEl.textContent = `checkmate — ${winner} jev (${intentName(winner)}) wins`;
+  } else {
+    const why = game.isDrawByFiftyMoves?.() ? 'fifty-move' : 'stalemate/insufficient material';
+    noteEl.textContent = 'Draw (' + why + ').';
+    narrEl.textContent = 'draw — ' + why;
+  }
 }
 
 /* ── Jev's move ──────────────────────────────────────────────────────────── */
@@ -199,6 +216,8 @@ async function jevMove() {
     cands.forEach((m) => { criteria[m.san] = describe(m); });
 
     const side = game.turn() === 'w' ? 'white' : 'black';
+    tagFor(side).classList.add('thinking');
+    narrEl.textContent = `${side} jev (${intentName(side)}) is weighing ${cands.length} moves…`;
     const state = {
       position_fen: game.fen(),
       you_are: side,
@@ -206,7 +225,7 @@ async function jevMove() {
       in_check: game.inCheck(),
       legal_moves_available: cands.length,
       candidate_moves: cands.map((m) => `${m.san} — ${describe(m)}`),
-      intent: intentSel.options[intentSel.selectedIndex].text,
+      intent: intentName(side),
       move_notation: 'SAN. Board files are a-h left to right, ranks 1-8 bottom to top.',
       note: 'Choose exactly one candidate move.',
     };
@@ -249,6 +268,18 @@ async function jevMove() {
     });
     render();
     renderAnswers(answersEl, res.answers);
+
+    // narrate the pick in plain terms while the heatmap is on screen
+    const moveProb = (res.answers.move.probabilities || {})[chosenSan];
+    const plan = res.answers.plan && res.answers.plan.choice;
+    const worry = res.answers.worried && res.answers.worried.noul;
+    const num = Math.floor(game.history().length / 2) + 1;
+    narrEl.textContent =
+      `${num}${side === 'white' ? '.' : '…'} ${chosenSan}` +
+      (moveProb != null ? ` — ${Math.round(moveProb * 100)}% of its attention` : '') +
+      (plan ? ` · plan: ${plan}` : '') +
+      (worry != null ? ` · king-worry ${worry.toFixed(2)}` : '');
+
     await new Promise((r) => setTimeout(r, 1800));   // hold so the heatmap reads
 
     game.move(mv.san);
@@ -258,23 +289,57 @@ async function jevMove() {
     checkOver();
   } catch (e) {
     showError(answersEl, e);
+    if (auto) setAuto(false);   // don't keep burning calls on a dead link
   } finally {
     busy = false;
+    tagW.classList.remove('thinking');
+    tagB.classList.remove('thinking');
     setBusy(document.getElementById('chess-tick'), false);
+    if (auto) {
+      if (game.isGameOver()) setAuto(false);
+      else setTimeout(() => { if (auto) jevMove(); }, NEXT_MOVE_MS);
+    }
   }
 }
 
 /* ── wiring ──────────────────────────────────────────────────────────────── */
+function resetGame() {
+  game = new Chess(); heat = {}; selected = null; render();
+  answersEl.innerHTML = '<div class="q empty">no answers yet</div>';
+  payloadEl.textContent = '—';
+  noteEl.textContent = 'New game. You play white — or press ▶ and watch Jev vs Jev.';
+  narrEl.textContent = 'press ▶ — jev plays both sides, each with its own intent';
+}
+
+function setAuto(on) {
+  auto = on;
+  autoBtn.textContent = on ? '⏸ pause' : '▶ jev vs jev';
+  if (on) {
+    if (game.isGameOver()) resetGame();
+    narrEl.textContent = 'jev vs jev — every move is a live API call';
+    if (!busy) jevMove();
+  } else {
+    narrEl.textContent = 'paused — the board is yours';
+  }
+}
+
+function paintTags() {
+  tagW.textContent = 'jev · white · ' + intentName('white');
+  tagB.textContent = 'jev · black · ' + intentName('black');
+}
+
+autoBtn.addEventListener('click', () => setAuto(!auto));
 document.getElementById('chess-jev').addEventListener('click', jevMove);
 document.getElementById('chess-undo').addEventListener('click', () => {
+  setAuto(false);
   game.undo(); game.undo(); heat = {}; selected = null; render();
   noteEl.textContent = 'Position rewound.';
 });
 document.getElementById('chess-reset').addEventListener('click', () => {
-  game = new Chess(); heat = {}; selected = null; render();
-  answersEl.innerHTML = '<div class="q empty">no answers yet</div>';
-  payloadEl.textContent = '—';
-  noteEl.textContent = 'New game. You play white.';
+  setAuto(false); resetGame();
 });
+intentW.addEventListener('change', paintTags);
+intentB.addEventListener('change', paintTags);
 
+paintTags();
 render();
