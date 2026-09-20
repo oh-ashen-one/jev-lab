@@ -41,7 +41,16 @@ let selected = null;
 let heat = {};          // {square: probability}
 let busy = false;
 let auto = false;
-const NEXT_MOVE_MS = 900;   // beat between moves so each one reads to an audience
+
+/* Pace = presentation theater, not Jev. The API call is ~300ms; the rest is
+ * how long we hold the heatmap and pause between moves so people can read it. */
+const PACE = {
+  showcase: { hold: 1800, gap: 900 },
+  normal:   { hold: 900,  gap: 400 },
+  blitz:    { hold: 250,  gap: 80  },
+};
+const paceSel = document.getElementById('chess-pace');
+const pace = () => PACE[paceSel.value] || PACE.normal;
 
 const selFor = (side) => side === 'white' ? intentW : intentB;
 const tagFor = (side) => side === 'white' ? tagW : tagB;
@@ -280,7 +289,7 @@ async function jevMove() {
       (plan ? ` · plan: ${plan}` : '') +
       (worry != null ? ` · king-worry ${worry.toFixed(2)}` : '');
 
-    await new Promise((r) => setTimeout(r, 1800));   // hold so the heatmap reads
+    await new Promise((r) => setTimeout(r, pace().hold));   // hold so the heatmap reads
 
     game.move(mv.san);
     heat = {};
@@ -297,7 +306,7 @@ async function jevMove() {
     setBusy(document.getElementById('chess-tick'), false);
     if (auto) {
       if (game.isGameOver()) setAuto(false);
-      else setTimeout(() => { if (auto) jevMove(); }, NEXT_MOVE_MS);
+      else setTimeout(() => { if (auto) jevMove(); }, pace().gap);
     }
   }
 }

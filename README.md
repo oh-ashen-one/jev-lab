@@ -44,9 +44,10 @@ same model can be given two different personalities and watched diverging.
 Press **▶ jev vs jev** and it plays itself end to end: each side's tag lights up
 while its call is in flight, and a narration strip reports every move in plain
 terms — the move number, the pick, how much of its probability mass it spent,
-its stated plan, and its king-worry score. Pause any time to play white
-yourself. Turn off the candidate screen and you can watch it play badly in a
-legible way.
+its stated plan, and its king-worry score. The **pace** selector (showcase /
+normal / blitz) only changes presentation delays — the model itself answers in
+~300 ms. Pause any time to play white yourself. Turn off the candidate screen
+and you can watch it play badly in a legible way.
 
 ## What the panel shows
 
