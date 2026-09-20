@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Jev Lab — three games, one decision model</title>
+<title>Jev Lab — chess vs a decision model</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -14,11 +14,6 @@
     <span class="name">JEV LAB</span>
     <span class="sub">TypeSafe Jev · typed decisions, no text</span>
   </div>
-  <nav class="tabs" role="tablist">
-    <button class="tab is-active" data-tab="pong" role="tab">Pong</button>
-    <button class="tab" data-tab="rps" role="tab">Rock–Paper–Scissors</button>
-    <button class="tab" data-tab="chess" role="tab">Chess</button>
-  </nav>
   <div class="stats">
     <div class="stat"><span class="k">model</span><span class="v" id="stat-model">—</span></div>
     <div class="stat"><span class="k">calls</span><span class="v" id="stat-calls">0</span></div>
@@ -29,109 +24,8 @@
 
 <main>
 
-  <!-- ───────────────────────────── PONG ───────────────────────────── -->
-  <section class="panel is-active" id="panel-pong">
-    <div class="stage">
-      <canvas id="pong-canvas" width="880" height="520"></canvas>
-      <div class="stage-note">
-        Jev steers <b>both</b> paddles — violet (left) vs teal (right). One call
-        per tick asks the same typed question for each side; Jev only ever answers
-        <code>up / hold / down</code>. The ball and rules are ordinary code.
-      </div>
-    </div>
-    <aside class="brain">
-      <h2>Jev vs Jev <span class="tick" id="pong-tick"></span></h2>
-
-      <label class="ctrl">
-        <span class="ctrl-label">Difficulty <em>= confidence threshold</em></span>
-        <input type="range" id="pong-threshold" min="0" max="0.95" step="0.01" value="0.50">
-        <output id="pong-threshold-out">0.50</output>
-      </label>
-      <p class="hint">Below the threshold a side <b>abstains</b> (amber). Abstaining means
-        <b>no new order</b> — that paddle keeps executing its last command, so the
-        correction it failed to issue becomes a stale input. Raise the gate and both
-        sides only act when sure; hesitation costs games on both ends.</p>
-
-      <label class="ctrl">
-        <span class="ctrl-label">Ball speed</span>
-        <input type="range" id="pong-speed" min="0.4" max="2.2" step="0.1" value="1.0">
-        <output id="pong-speed-out">1.0×</output>
-      </label>
-
-      <label class="ctrl">
-        <span class="ctrl-label">Perception noise <em>— how unsure Jev is</em></span>
-        <input type="range" id="pong-noise" min="0" max="0.30" step="0.01" value="0.05">
-        <output id="pong-noise-out">0.05</output>
-      </label>
-
-      <label class="ctrl row">
-        <input type="checkbox" id="pong-auto" checked>
-        <span class="ctrl-label">Continuous play</span>
-      </label>
-
-      <div class="qbox" id="pong-answers"></div>
-
-      <div class="scoreline">
-        <div><span class="k">jev L</span><span class="v" id="pong-left">0</span></div>
-        <div><span class="k">jev R</span><span class="v accent" id="pong-right">0</span></div>
-        <div><span class="k">abst L</span><span class="v" id="pong-abstain-l">0</span></div>
-        <div><span class="k">abst R</span><span class="v" id="pong-abstain-r">0</span></div>
-      </div>
-    </aside>
-  </section>
-
-  <!-- ─────────────────────────── ROCK PAPER SCISSORS ─────────────────────────── -->
-  <section class="panel" id="panel-rps">
-    <div class="stage">
-      <div class="camwrap">
-        <video id="rps-video" playsinline muted></video>
-        <canvas id="rps-overlay"></canvas>
-        <div class="cam-hint" id="rps-camhint">click “Enable camera” — or use the pose buttons on the right</div>
-      </div>
-      <div class="rowbtns">
-        <button class="btn primary" id="rps-enable">Enable camera</button>
-        <span class="divider">no camera? inject a pose:</span>
-        <button class="btn" data-pose="rock">✊ rock</button>
-        <button class="btn" data-pose="paper">✋ paper</button>
-        <button class="btn" data-pose="scissors">✌️ scissors</button>
-      </div>
-      <div class="throws">
-        <div class="throw"><span class="k">you</span><span class="v" id="rps-human">—</span></div>
-        <div class="throw"><span class="k">jev</span><span class="v" id="rps-jev">—</span></div>
-        <div class="throw"><span class="k">result</span><span class="v" id="rps-result">—</span></div>
-      </div>
-      <div class="scoreline">
-        <div><span class="k">you</span><span class="v" id="rps-w">0</span></div>
-        <div><span class="k">jev</span><span class="v accent" id="rps-l">0</span></div>
-        <div><span class="k">draws</span><span class="v" id="rps-d">0</span></div>
-      </div>
-    </div>
-    <aside class="brain">
-      <h2>Jev's decision <span class="tick" id="rps-tick"></span></h2>
-
-      <label class="ctrl">
-        <span class="ctrl-label">Hand encoding <em>— flip this live</em></span>
-        <select id="rps-encoding">
-          <option value="features" selected>derived features (works)</option>
-          <option value="raw">raw 21 coordinates (fails)</option>
-        </select>
-      </label>
-      <p class="hint">Jev cannot see. Raw pixel coordinates collapse it to
-        <b>~33%</b> and confidence ~0.24 — it just says “paper” for everything.
-        Give it per-finger extension ratios and it jumps to <b>~67%</b> at 0.65
-        confidence. Same model, same hand.</p>
-
-      <div class="qbox" id="rps-answers"></div>
-
-      <div class="payload">
-        <div class="payload-head">state sent to Jev <span class="dim" id="rps-payload-kind"></span></div>
-        <pre id="rps-payload">—</pre>
-      </div>
-    </aside>
-  </section>
-
   <!-- ───────────────────────────── CHESS ───────────────────────────── -->
-  <section class="panel" id="panel-chess">
+  <section class="panel is-active" id="panel-chess">
     <div class="stage">
       <div class="boardwrap">
         <div id="chess-board" class="board"></div>
@@ -182,8 +76,6 @@
 </main>
 
 <script type="module" src="app.js"></script>
-<script type="module" src="pong.js"></script>
-<script type="module" src="rps.js"></script>
 <script type="module" src="chessgame.js"></script>
 </body>
 </html>

@@ -12,7 +12,7 @@
  * is legible rather than mysterious.
  */
 import { Chess } from 'https://cdn.jsdelivr.net/npm/chess.js@1.4.0/+esm';
-import { askJev, renderAnswers, showError, onActivate, setBusy } from './app.js';
+import { askJev, renderAnswers, showError, setBusy } from './app.js';
 
 const VAL = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
 const GLYPH = {
@@ -277,5 +277,4 @@ document.getElementById('chess-reset').addEventListener('click', () => {
   noteEl.textContent = 'New game. You play white.';
 });
 
-onActivate('chess', render);
 render();

@@ -124,41 +124,4 @@ export function showError(container, err) {
   container.innerHTML = `<div class="q empty err">${esc(err.message || err)}</div>`;
 }
 
-/** Pong/RPS use this: treat a low-confidence answer as an abstention. */
-export function gated(answer, threshold) {
-  if (!answer) return null;
-  if (threshold != null && answer.confidence < threshold) return null;
-  return answer.choice;
-}
 
-/* ── tabs ────────────────────────────────────────────────────────────────── */
-
-const activators = {};
-export function onActivate(tab, fn) { activators[tab] = fn; }
-
-function selectTab(tab) {
-  document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('is-active', b.dataset.tab === tab));
-  document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('is-active', p.id === 'panel-' + tab));
-  if (activators[tab]) activators[tab]();
-}
-
-document.querySelectorAll('.tab').forEach((btn) => {
-  btn.addEventListener('click', () => selectTab(btn.dataset.tab));
-});
-
-/* ── small helpers ───────────────────────────────────────────────────────── */
-
-export const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-export const lerp = (a, b, t) => a + (b - a) * t;
-
-/** Ask Jev, but never let two requests for the same loop overlap. */
-export function createPoller(fn) {
-  let inFlight = false;
-  return async function tick() {
-    if (inFlight) return;
-    inFlight = true;
-    try { await fn(); }
-    catch (e) { console.warn('poll failed', e); }
-    finally { inFlight = false; }
-  };
-}

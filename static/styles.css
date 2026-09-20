@@ -45,19 +45,6 @@ html, body {
   padding-left: 11px; border-left: 1px solid var(--line-2);
 }
 
-.tabs { display: flex; gap: 4px; }
-.tab {
-  background: transparent; border: 1px solid transparent; color: var(--fg-dim);
-  padding: 8px 15px; border-radius: 8px; cursor: pointer;
-  font-size: 13px; font-weight: 550; font-family: var(--sans);
-  transition: background .12s, color .12s;
-}
-.tab:hover { color: var(--fg); background: var(--bg-3); }
-.tab.is-active {
-  color: var(--bg); background: var(--accent);
-  border-color: var(--accent); font-weight: 700;
-}
-
 .stats { margin-left: auto; display: flex; gap: 22px; align-items: center; }
 .stat { display: flex; flex-direction: column; gap: 1px; }
 .stat .k {
@@ -78,16 +65,6 @@ main { padding: 22px; }
 }
 .brain { display: flex; flex-direction: column; gap: 14px; }
 
-.stage-note {
-  margin-top: 12px; color: var(--fg-dim); font-size: 12.5px; line-height: 1.55;
-}
-.stage-note code {
-  font-family: var(--mono); background: var(--bg-3);
-  padding: 1px 6px; border-radius: 4px; color: var(--accent); font-size: 12px;
-}
-
-canvas { display: block; width: 100%; height: auto; border-radius: 10px; background: #05070a; }
-
 h2 {
   margin: 0; font-size: 13px; font-weight: 700;
   text-transform: uppercase; letter-spacing: .1em; color: var(--fg-dim);
@@ -107,7 +84,6 @@ h2 {
 .ctrl-label { color: var(--fg-dim); }
 .ctrl-label em { color: var(--fg-dimmer); font-style: normal; }
 input[type=range] { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); }
-output { font-family: var(--mono); font-size: 12.5px; color: var(--accent); }
 select {
   background: var(--bg-3); color: var(--fg); border: 1px solid var(--line-2);
   border-radius: 7px; padding: 6px 9px; font-size: 12.5px; font-family: var(--sans);
@@ -159,13 +135,6 @@ input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; }
 
 .q.empty { color: var(--fg-dimmer); font-size: 12px; text-align: center; padding: 18px 10px; }
 
-/* threshold marker overlaid on a bar track */
-.bar-track { position: relative; }
-.thresh {
-  position: absolute; top: -2px; bottom: -2px; width: 2px;
-  background: var(--warn); box-shadow: 0 0 7px var(--warn);
-}
-
 /* ── payload inspector ───────────────────────────────────── */
 .payload { background: #05070a; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
 .payload-head {
@@ -179,35 +148,6 @@ input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; }
   white-space: pre-wrap; word-break: break-word;
 }
 .dim { color: var(--fg-dimmer); text-transform: none; letter-spacing: 0; }
-
-/* ── score lines ─────────────────────────────────────────── */
-.scoreline { display: flex; gap: 10px; margin-top: auto; }
-.scoreline > div {
-  flex: 1; background: var(--bg-3); border: 1px solid var(--line);
-  border-radius: 9px; padding: 9px 11px; display: flex; flex-direction: column; gap: 2px;
-}
-.scoreline .k { font-size: 9.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--fg-dimmer); }
-.scoreline .v { font-family: var(--mono); font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.scoreline .v.accent { color: var(--accent); }
-
-/* ── RPS ─────────────────────────────────────────────────── */
-.camwrap {
-  position: relative; border-radius: 10px; overflow: hidden; background: #05070a;
-  aspect-ratio: 16/9; max-width: 780px; margin: 0 auto;
-}
-#rps-video, #rps-overlay { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-#rps-overlay { pointer-events: none; }
-.cam-hint {
-  position: absolute; inset: auto 0 0 0; padding: 9px 12px; font-size: 11.5px;
-  background: linear-gradient(transparent, rgba(0,0,0,.85)); color: var(--fg-dim);
-}
-.throws { display: flex; gap: 10px; margin-top: 12px; }
-.throw {
-  flex: 1; background: var(--bg-3); border: 1px solid var(--line);
-  border-radius: 9px; padding: 9px 11px; display: flex; flex-direction: column; gap: 2px;
-}
-.throw .k { font-size: 9.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--fg-dimmer); }
-.throw .v { font-family: var(--mono); font-size: 16px; font-weight: 700; }
 
 /* ── chess ───────────────────────────────────────────────── */
 .boardwrap { display: flex; justify-content: center; }
